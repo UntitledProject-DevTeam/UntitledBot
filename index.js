@@ -31,6 +31,8 @@ const functions = require("./function.js");
 client.conf = config;
 client.func = functions;
 client.fs = fs;
+client.zBotGData = require("./ttsUtils/GData");
+client.zBotSlashCommands = require("./ttsUtils/zBotSlashCommands");
 
 const cmdH = require(`./system/command.js`);
 client.commands = new Collection(); // Add this line to define the client.commands object
