@@ -1,5 +1,5 @@
 const { getVoiceConnection } = require("@discordjs/voice");
-const zBotTextPreprocessor = require("./ttsUtils/TextPreprocessor");
+const zBotTextPreprocessor = require("../ttsUtils/TextPreprocessor");
 const zBotTextToSpeech = require("../ttsUtils/TextToSpeech");
 
 const Discord = require("discord.js");
