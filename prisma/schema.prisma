@@ -9,3 +9,17 @@ datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }
+
+model Reminder {
+  id          Int     @id @default(autoincrement())
+  user        Int
+  channel     Int
+  is_repeat   Boolean @default(false)
+  is_enable   Boolean @default(true)
+  created_at  Int
+  is_dm       Boolean @default(false)
+  data        Int
+  date        String
+  interval    String?
+  is_webhook  Boolean @default(false)
+}
