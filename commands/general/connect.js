@@ -35,18 +35,18 @@ const autocompleteLimit = 25;
 const { getVoiceConnection } = require("@discordjs/voice");
 const { joinVoiceChannel } = require("@discordjs/voice");
 const { createAudioPlayer, NoSubscriberBehavior } = require("@discordjs/voice");
-const { AttachmentBuilder } = require("discord.js");
+const { AttachmentBuilder, SlashCommandBuilder } = require("discord.js");
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("connect")
     .setDescription("Connect to a voice channel."),
   async execute(i, zBotGData) {
-    const guildId = interaction.guildId;
-
+    const guildId = i.guildId;
+    zBotGData = zBotGData.zBotGData
     const textCannelId = i.channel.id;
     const voiceCannelId = i.member.voice.channel.id;
-    const adapterCreator = interaction.guild.voiceAdapterCreator;
+    const adapterCreator = i.guild.voiceAdapterCreator;
 
     //const { joinVoiceChannel } = require("@discordjs/voice");
     const connection = joinVoiceChannel({
@@ -88,10 +88,16 @@ module.exports = {
     guildConfig.textChannelId = textCannelId;
     guildConfig.voiceChannelId = voiceCannelId;
 
+    // メンバーのスピーカー設定を初期化
+    zBotGData.initMemberSpeakerConfigIfUndefined(guildId, i.member.id);
+    
+    // 設定を保存
+    zBotGData.saveConfig(guildId);
+    
     zBotGData.restoreDictionary(guildId);
     zBotGData.initGuildQueueIfUndefined(guildId);
 
-    await interaction.reply("こんにちは!UniBotを接続しました");
+    await i.reply("こんにちは!UniBotを接続しました");
     return "No data";
   },
 };

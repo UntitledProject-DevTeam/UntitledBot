@@ -1,10 +1,11 @@
 require("dotenv").config();
 
 const envVoiceServers = process.env.voiceServers;
-const envVoiceServerTextLengthLimit = parseInt(
-  process.env.voiceServerTextLengthLimit
-);
+const envVoiceServerTextLengthLimit = parseInt(process.env.voiceServerTextLengthLimit);
 const envSamplingRate = parseInt(process.env.samplingRate);
+const VOICEVOX_API_URL = process.env.VOICEVOX_API_URL;
+const COEIROINK_API_URL = process.env.COEIROINK_API_URL;
+const YTTS_API_URL = process.env.YTTS_API_URL;
 
 const crypto = require("crypto");
 const { setTimeout } = require("timers/promises");
@@ -19,7 +20,6 @@ async function zBotTextToSpeech(splitedText, speaker, player, queue) {
     splitedText = ["文字数が多すぎます"];
   }
 
-  //const crypto = require("crypto");
   const uuid = crypto.randomUUID();
 
   enQueue(queue, uuid);
@@ -27,7 +27,6 @@ async function zBotTextToSpeech(splitedText, speaker, player, queue) {
   let count = 30 * 10;
 
   while (queue[0] !== uuid) {
-    //const { setTimeout } = require("timers/promises");
     await setTimeout(100);
 
     count--;
@@ -46,7 +45,6 @@ async function zBotTextToSpeech(splitedText, speaker, player, queue) {
   }
 
   for (const resource of resources) {
-    //const { entersState, AudioPlayerStatus } = require("@discordjs/voice");
     await entersState(player, AudioPlayerStatus.Idle, 30 * 1000);
 
     if (queue.length == 0 || queue[0] !== uuid) {
@@ -67,61 +65,109 @@ const { Readable } = require("stream");
 const { createAudioResource, StreamType } = require("@discordjs/voice");
 
 async function voiceSynthesis(text, speaker) {
-  const server = getVoiceServers().find((x) => {
-    return x.engine === speaker.engine;
-  });
-
-  //const { default: axios } = require("axios");
+  let baseURL = speaker.engine === 'voicevox' ? VOICEVOX_API_URL : COEIROINK_API_URL;
+  baseURL = speaker.engine === 'ytts' ? YTTS_API_URL : baseURL;
+  
   const rpc = axios.create({
-    baseURL: server.baseURL,
+    baseURL: baseURL,
     proxy: false,
     timeout: 30 * 1000,
   });
 
-  const response_audio_query = await rpc.post(
-    "audio_query?text=" + encodeURIComponent(text) + "&speaker=" + speaker.id,
-    {
-      headers: { accept: "application/json" },
-    }
-  );
+  if (speaker.engine === 'coeiroink') {
+    // COEIROINKの場合は直接synthesis
+    const synthesisParam = {
+      "speakerUuid": speaker.uuid,
+      "styleId": parseInt(speaker.id),
+      "text": text,
+      "speedScale": parseFloat(speaker.speedScale) || 1.0,
+      "volumeScale": parseFloat(speaker.volumeScale) || 1.0,
+      "pitchScale": parseFloat(speaker.pitchScale) || 0.0,
+      "intonationScale": parseFloat(speaker.intonationScale) || 1.0,
+      "prePhonemeLength": 0.1,
+      "postPhonemeLength": 0.1,
+      "outputSamplingRate": envSamplingRate
+    };
 
-  if (!response_audio_query || response_audio_query.status !== 200) return;
+    const response = await rpc.post(
+      "v1/synthesis",
+      JSON.stringify(synthesisParam),  // JSON文字列に変換
+      {
+        responseType: "arraybuffer",
+        headers: {
+          "accept": "audio/wav",
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
-  const audioQuery = JSON.parse(JSON.stringify(response_audio_query.data));
+    if (!response || response.status !== 200) return;
+    return createResponseResource(response.data);
 
-  audioQuery.speedScale = speaker.speedScale;
-  audioQuery.pitchScale = speaker.pitchScale;
-  audioQuery.intonationScale = speaker.intonationScale;
-  audioQuery.volumeScale = speaker.volumeScale;
+  } else if (speaker.engine === 'voicevox') {
+    // VOICEVOXの場合は従来通りquery→synthesis
+    const response_query = await rpc.post(
+      "audio_query?text=" + encodeURIComponent(text) + "&speaker=" + speaker.id,
+      null,
+      {
+        headers: { accept: "application/json" },
+      }
+    );
 
-  audioQuery.outputSamplingRate = envSamplingRate;
+    if (!response_query || response_query.status !== 200) return;
 
-  const response_synthesis = await rpc.post(
-    "synthesis?speaker=" + speaker.id,
-    JSON.stringify(audioQuery),
-    {
-      responseType: "arraybuffer",
-      headers: {
-        accept: "audio/wav",
-        "Content-Type": "application/json",
-      },
-    }
-  );
+    const query = response_query.data;
+    query.speedScale = parseFloat(speaker.speedScale) || 1.0;
+    query.pitchScale = parseFloat(speaker.pitchScale) || 0.0;
+    query.intonationScale = parseFloat(speaker.intonationScale) || 1.0;
+    query.volumeScale = parseFloat(speaker.volumeScale) || 1.0;
+    query.outputSamplingRate = envSamplingRate;
 
-  if (!response_synthesis || response_synthesis.status !== 200) return;
+    const response_synthesis = await rpc.post(
+      "synthesis?speaker=" + speaker.id,
+      query,
+      {
+        responseType: "arraybuffer",
+        headers: {
+          accept: "audio/wav",
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
-  //const { Readable } = require("stream");
+    if (!response_synthesis || response_synthesis.status !== 200) return;
+    return createResponseResource(response_synthesis.data);
+  } else if (speaker.engine === 'ytts') {
+    // YTTSの場合はフォームデータとして送信
+    const formData = new URLSearchParams();
+    formData.append('speaker', speaker.id);
+    formData.append('text', text);
+
+    const response = await rpc.post(
+      "synth",
+      formData,
+      {
+        responseType: "arraybuffer",
+        headers: {
+          "accept": "audio/wav",
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+      }
+    );
+
+    if (!response || response.status !== 200) return;
+    return createResponseResource(response.data);
+  }
+}
+
+function createResponseResource(data) {
   const stream = new Readable();
-
-  stream.push(response_synthesis.data);
+  stream.push(data);
   stream.push(null);
-
-  //const { createAudioResource, StreamType } = require("@discordjs/voice");
-  const resource = createAudioResource(stream, {
+  
+  return createAudioResource(stream, {
     inputType: StreamType.Arbitrary,
   });
-
-  return resource;
 }
 
 function enQueue(queue, uuid) {
@@ -141,26 +187,6 @@ function deQueue(queue, uuid) {
   }
 
   return;
-}
-
-function getVoiceServers() {
-  const servers = [];
-
-  for (const splited of envVoiceServers.split(";")) {
-    const url = new URL(splited.trim());
-
-    const engine = url.searchParams.has("engine")
-      ? url.searchParams.get("engine")
-      : null;
-
-    const baseURL = url.origin;
-
-    if (engine === null) return null;
-
-    servers.push({ engine: engine, baseURL: baseURL });
-  }
-
-  return servers;
 }
 
 module.exports = zBotTextToSpeech;

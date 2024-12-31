@@ -16,6 +16,7 @@
     "discord-api-types": "^0.37.90",
     "discord.js": "^14.15.3",
     "dotenv": "^16.4.5",
+    "libsodium-wrappers": "^0.7.15",
     "node-cron": "^3.0.3"
   }
 }

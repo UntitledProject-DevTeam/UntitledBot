@@ -6,7 +6,7 @@ const Discord = require("discord.js");
 module.exports = {
   name: "messageCreate",
     async execute(message, client) {
-      const { GData } = message.client;
+      const { zBotGData } = message.client;
     if (message.author.bot) return;
 
     const guildId = message.guildId;
@@ -17,27 +17,27 @@ module.exports = {
 
     if (!connection) return;
 
-    const guildConfig = GData.initGuildConfigIfUndefined(guildId);
+    const guildConfig = zBotGData.initGuildConfigIfUndefined(guildId);
 
     const onEventTextChannelId = message.channel.id;
     const targetTextChannelId = guildConfig.textChannelId;
 
     if (onEventTextChannelId !== targetTextChannelId) return;
 
-    const memberSpeakerConfig = GData.initMemberSpeakerConfigIfUndefined(
+    const memberSpeakerConfig = zBotGData.initMemberSpeakerConfigIfUndefined(
       guildId,
       memberId
     );
 
     const text = message.content;
-    const dictionary = GData.initGuildDictionaryIfUndefined(guildId);
+    const dictionary = zBotGData.initGuildDictionaryIfUndefined(guildId);
 
     //const zBotTextPreprocessor = require("./zBotTextPreprocessor");
     const splitedText = zBotTextPreprocessor(text, dictionary);
 
     const speaker = memberSpeakerConfig;
     const player = connection.state.subscription.player;
-    const queue = GData.initGuildQueueIfUndefined(guildId);
+    const queue = zBotGData.initGuildQueueIfUndefined(guildId);
 
     //const zBotTextToSpeech = require("./zBotTextToSpeech");
     await zBotTextToSpeech(splitedText, speaker, player, queue);

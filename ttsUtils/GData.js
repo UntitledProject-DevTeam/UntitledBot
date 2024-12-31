@@ -2,6 +2,7 @@ require("dotenv").config();
 
 const envDefaultSpeakerEngine = process.env.defaultSpeakerEngine;
 const envDefaultSpeakerId     = parseInt(process.env.defaultSpeakerId);
+const envDefaultSpeakerUuid   = process.env.defaultSpeakerUuid;
 
 const envDefaultSpeakerSpeedScale      = Number(process.env.defaultSpeakerSpeedScale);
 const envDefaultSpeakerPitchScale      = Number(process.env.defaultSpeakerPitchScale);
@@ -39,9 +40,10 @@ const zBotGData = {
 
     "initMemberSpeakerConfigIfUndefined": function(guildId, memberId){
         this.initGuildConfigIfUndefined(guildId);
-
+        this.zBotGuildConfigs[guildId].memberSpeakerConfigs[memberId] ??= {};
         this.zBotGuildConfigs[guildId].memberSpeakerConfigs[memberId].engine ??= envDefaultSpeakerEngine;
         this.zBotGuildConfigs[guildId].memberSpeakerConfigs[memberId].id     ??= envDefaultSpeakerId;
+        this.zBotGuildConfigs[guildId].memberSpeakerConfigs[memberId].uuid   ??= envDefaultSpeakerUuid;
 
         this.zBotGuildConfigs[guildId].memberSpeakerConfigs[memberId].speedScale      ??= envDefaultSpeakerSpeedScale;
         this.zBotGuildConfigs[guildId].memberSpeakerConfigs[memberId].pitchScale      ??= envDefaultSpeakerPitchScale;
@@ -183,4 +185,3 @@ const zBotGData = {
 };
 
 module.exports = zBotGData;
- 
